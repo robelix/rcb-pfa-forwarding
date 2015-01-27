@@ -4,7 +4,7 @@ if (window.rcmail) {
     rcmail.addEventListener('init', function(evt) {
     var tab = $('<span>').attr('id', 'settingstabpluginforwarding').addClass('tablink');
     
-    var button = $('<a>').attr('href', rcmail.env.comm_path+'&_action=plugin.pfadmin_forwarding').html(rcmail.gettext('Aliasy')).appendTo(tab);
+    var button = $('<a>').attr('href', rcmail.env.comm_path+'&_action=plugin.pfadmin_forwarding').html(rcmail.gettext('forwarding','pfadmin_forwarding')).appendTo(tab);
                 
     button.bind('click', function(e){ return rcmail.command('plugin.pfadmin_forwarding', this) });
     
