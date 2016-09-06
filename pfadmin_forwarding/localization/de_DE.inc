@@ -1,14 +1,13 @@
 <?php
 
 $labels = array();
-$labels['forwarding'] = 'Weiterleitungen';
-$labels['invalidaddress'] = 'Ungültige E-Mail-Adresse';
-$labels['keepcopies'] = 'Kopien der original E-Mails behalten';
-$labels['forwardingaddress'] = 'Weiterleiten an';
+$labels['forwarding'] = 'Weiterleitung';
+$labels['invalidaddress'] = 'Ungültige E-Mail Adresse';
+$labels['keepcopies'] = 'Kopie behalten';
+$labels['forwardingaddress'] = 'Weiterleitung an diese Adresse(n)';
 $labels['forwardingenabled'] = 'Weiterleitung aktivieren';
 
 $messages = array();
-$messages['forwardingloop'] = 'Diese Weiterleitung ist zyklisch.';
-$messages['demoaccount'] = 'Dies ist ein Demo-Zugang. Weiterleitungen sind nicht erlaubt.';
-
+$messages['forwardingloop'] = 'Diese Weiterleitung wird im Kreis laufen';
+$messages['demoaccount'] = 'Dies ist eine Demo. Weiterleitung ist hier nicht möglich.';
 ?>
