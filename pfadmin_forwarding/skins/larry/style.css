@@ -1,0 +1,7 @@
+#settings-tabs .listitem .forwarding {
+    background-image:url(images/fwd-light.png);
+    background-position: 6px 0px;
+}
+#settings-tabs .selected .forwarding {
+    background-image:url(images/fwd-dark.png);
+}

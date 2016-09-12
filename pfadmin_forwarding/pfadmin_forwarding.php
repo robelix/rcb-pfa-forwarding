@@ -25,18 +25,42 @@ require_once('plugins/pfadmin_forwarding/pfadmin_functions.php');
 class pfadmin_forwarding extends rcube_plugin
 {
   public $task = 'settings';
-  public $EMAIL_ADDRESS_PATTERN = '([a-z0-9][a-z0-9\-\.\+\_]*@[a-z0-9]([a-z0-9\-][.]?)*[a-z0-9]\\.[a-z]{2,5})';
+  public $EMAIL_ADDRESS_PATTERN = '([a-z0-9][a-z0-9\-\.\+\_]*@[a-z0-9]([a-z0-9\-][.]?)*[a-z0-9]\.[a-z]{2,15})';
   private $sql_select = 'SELECT * FROM alias WHERE address = %u LIMIT 1;';
   private $sql_update = 'UPDATE alias SET goto = %a  WHERE address = %u LIMIT 1;';
 
   function init()
   {
+    $rcmail = rcmail::get_instance();
     $this->_load_config();
-    $this->register_action('plugin.pfadmin_forwarding', array($this, 'pfadmin_forwarding_init'));
-    $this->register_action('plugin.pfadmin_forwarding-save', array($this, 'pfadmin_forwarding_save'));
-    $this->register_handler('plugin.pfadmin_forwarding_form', array($this, 'pfadmin_forwarding_form'));
-    $this->include_script('pfadmin_forwarding.js');
+    
+    if ($rcmail->task == 'settings') {
+        $this->add_texts('localization/', true);
+        $this->include_stylesheet('skins/larry/style.css');
+        $this->add_hook('settings_actions', array($this, 'settings_actions'));
+        $this->register_action('plugin.pfadmin_forwarding-save', array($this, 'pfadmin_forwarding_save'));
+        $this->register_action('plugin.pfadmin_forwarding', array($this, 'pfadmin_forwarding_init'));
+    }
+    
+    //$this->register_action('plugin.pfadmin_forwarding', array($this, 'pfadmin_forwarding_init'));
+    //$this->register_action('plugin.pfadmin_forwarding-save', array($this, 'pfadmin_forwarding_save'));
+    //$this->register_handler('plugin.pfadmin_forwarding_form', array($this, 'pfadmin_forwarding_form'));
+    //$this->include_script('pfadmin_forwarding.js');
   }
+
+    function settings_actions($args)
+    {
+        // register as settings action
+        $args['actions'][] = array(
+            'action' => 'plugin.pfadmin_forwarding',
+            'class'  => 'forwarding',
+            'label'  => 'pfadmin_forwarding.forwarding',
+            'title'  => 'pfadmin_forwarding.forwarding',
+            'domain' => 'forwarding',
+        );
+
+        return $args;
+    }
 
   function _load_config()
   {
@@ -52,12 +76,10 @@ class pfadmin_forwarding extends rcube_plugin
 
   function pfadmin_forwarding_init()
   {
-
-    $this->add_texts('localization/');
+    $this->register_handler('plugin.body', array($this,'pfadmin_forwarding_form'));
     $rcmail = rcmail::get_instance();
     $rcmail->output->set_pagetitle($this->gettext('forwarding'));
-    $rcmail->output->send('pfadmin_forwarding.pfadmin_forwarding');
-
+    $rcmail->output->send('plugin');
   }
 
   # to keep current set autoreply
@@ -87,10 +109,16 @@ class pfadmin_forwarding extends rcube_plugin
     $address_a = array();
     foreach(explode(",",$address) as $a) {
     	if (trim($a)) {
-    		$address_a[] = $a;
+            if (preg_match($this->EMAIL_ADDRESS_PATTERN, $a)) {
+                $address_a[] = $a;
+            } else {
+                $rcmail->output->command('display_message', $this->gettext('invalidaddress').': '.$a , 'error' );
+                return $this->pfadmin_forwarding_init();
+            }
     	}
     }
     $address_a = array_unique($address_a);
+    
 
 	# ganz leer verhindern - in dem Fall in eigene box.
 	if (!$address_a) {
@@ -103,9 +131,11 @@ class pfadmin_forwarding extends rcube_plugin
     }
 
     $this->add_texts('localization/');
+    
+    
     if (!($res = $this->_save($user,$keepcopies,$address_a))) {
       if(isset($_SESSION['dnsblacklisted']) && $_SESSION['dnsblacklisted'] != 'pass'){
-	$this->add_texts('../dnsbl/localization/');
+        $this->add_texts('../dnsbl/localization/');
         $rcmail->output->command('display_message',sprintf(rcube_label('dnsblacklisted', 'pfadmin_forwarding'),$_SESSION['clientip']),'error');
       }
       else{
@@ -119,7 +149,6 @@ class pfadmin_forwarding extends rcube_plugin
         }
       }
     $this->pfadmin_forwarding_init();
-
   }
 
   function pfadmin_forwarding_form()
@@ -132,8 +161,6 @@ class pfadmin_forwarding extends rcube_plugin
       'pfadmin_forwarding.invalidaddress',
       'pfadmin_forwarding.forwardingloop'
     );
-
-    $rcmail->output->add_script("var settings_account=true;");
 
     $settings = $this->_get();
     $address     = str_replace(',',"\n",$settings['goto']);
@@ -155,42 +182,52 @@ class pfadmin_forwarding extends rcube_plugin
     $address_a = $cleaned_addr;
 
     $address = implode("\n", $address_a);
+
     $rcmail->output->set_env('product_name', $rcmail->config->get('product_name'));
 
+    $table = new html_table(array('cols' => 2));
 
     // allow the following attributes to be added to the <table> tag
     $attrib_str = html::attrib_string($attrib, array('style', 'class', 'id', 'cellpadding', 'cellspacing', 'border', 'summary'));
 
-    // return the complete edit form as table
-    $out .= '<fieldset><legend>' . $this->gettext('forwarding') . ' ::: ' . $rcmail->user->data['username'] . '</legend>' . "\n";
-    $out .= '<br />' . "\n";
-    $out .= '<table' . $attrib_str . ">\n\n";
-
     // show autoresponder properties
 
     $field_id = 'forwardingaddress';
+    
     $input_forwardingaddress = new html_textarea(array('name' => '_forwardingaddress', 'id' => $field_id, 'value' => $address, 'cols' => 60, 'rows' => 5));
-
-    $out .= sprintf("<tr><td class=\"title\"><label for=\"%s\">%s</label>:</td><td>%s</td></tr>\n",
-                $field_id,
-                rcube_utils::rep_specialchars_output($this->gettext('forwardingaddress')),
-                $input_forwardingaddress->show($date));
+    
+    $table->add('title', $this->gettext('forwardingaddress'));
+    $table->add(null, $input_forwardingaddress->show());
 
     $field_id = 'keepcopies';
     $input_keepcopies = new html_checkbox(array('name' => '_keepcopies', 'id' => $field_id, 'value' => 1));
 
-    $out .= sprintf("<tr><td class=\"title\"><label for=\"%s\">%s</label>:</td><td>%s</td></tr>\n",
-                $field_id,
-                rcube_utils::rep_specialchars_output($this->gettext('keepcopies')),
-                $input_keepcopies->show($keepcopies?1:0));
+    $table->add('title', $this->gettext('keepcopies'));
+    $table->add(null, $input_keepcopies->show($keepcopies?1:0));
 
-    $out .= "\n</table>";
-    $out .= '<br />' . "\n";
-    $out .= "</fieldset>\n";
+    $submit_button = $rcmail->output->button(array(
+            'command' => 'plugin.pfadmin_forwarding-save',
+            'type'    => 'input',
+            'class'   => 'button mainaction',
+            'label'   => 'save',
+    ));
 
-    $rcmail->output->add_gui_object('forwardingform', 'forwarding-form');
+    $out = html::div(array('class' => 'box'),
+        html::div(array('id' => 'prefs-title', 'class' => 'boxtitle'), $this->gettext('forwarding'))
+        . html::div(array('class' => 'boxcontent'),
+            $table->show(). html::p(null, $submit_button)));
 
-    return $out;
+    $rcmail->output->add_gui_object('forwardform', 'pfadmin_forwardingform');
+
+    $this->include_script('pfadmin_forwarding.js');
+
+    return $rcmail->output->form_tag(array(
+        'id'     => 'forwardingform',
+        'name'   => 'forwardingform',
+        'method' => 'post',
+        'action' => './?_task=settings&_action=plugin.pfadmin_forwarding-save',
+    ), $out);
+
   }
 
   private function _get()
